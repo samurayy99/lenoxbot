@@ -1,4 +1,0 @@
-tls-client
-fake-useragent
-requests
-tabulate

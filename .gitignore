@@ -10,5 +10,20 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Ignore environment variables (if any)
+# Ignore environment variables
 .env
+
+# Ignore data files (can be removed later if needed)
+data/positions.json
+data/token_watchlist.json
+data/trade_history.json
+
+# Ignore test artifacts
+tests/__pycache__/
+tests/*.pyc
+
+# Ignore system files (macOS/Windows/Linux)
+.DS_Store
+Thumbs.db
+
+.cursorignore
