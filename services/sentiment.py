@@ -17,7 +17,7 @@ class SentimentAnalyzer:
         """
         self.logger = logger
         self.api_key = os.getenv("LUNARCRUSH_API_KEY")
-        self.base_url = "https://lunarcrush.com/api3/"
+        self.base_url = "https://lunarcrush.com/api/v4"
 
         if not self.api_key:
             self.logger.error("LUNARCRUSH_API_KEY fehlt! Setze ihn in deiner .env Datei.")
