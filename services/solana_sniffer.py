@@ -1,5 +1,5 @@
 import aiohttp
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from utils.logger import BotLogger
 
 class SolanaSniffer:
@@ -9,14 +9,14 @@ class SolanaSniffer:
 
     BASE_URL = "https://api.solanasniffer.com/v1"
 
-    def __init__(self, logger: BotLogger):
+    def __init__(self, logger: Optional[BotLogger] = None):
         """
         Initialisiert den SolanaSniffer-Service.
 
         Args:
             logger: Logger-Instanz für Debugging und Protokollierung
         """
-        self.logger = logger
+        self.logger = logger or BotLogger()
 
     async def _make_request(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -70,7 +70,7 @@ class SolanaSniffer:
 
         Args:
             analysis: Analyseergebnisse des Tokens
-            threshold: Mindestbewertung für Sicherheit
+            threshold: Mindestbewertung für Sicherheit (default: 85)
 
         Returns:
             True, wenn das Token sicher ist, sonst False

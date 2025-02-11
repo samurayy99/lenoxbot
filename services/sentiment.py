@@ -1,37 +1,39 @@
 import aiohttp
+import os
 from typing import Dict, List, Any
 from utils.logger import BotLogger
 
-
 class SentimentAnalyzer:
     """
-    Token Sentiment-Analyse mit TweetScout Integration.
+    Token Sentiment-Analyse mit LunarCrush API.
     """
 
-    def __init__(self, api_key: str, logger: BotLogger):
+    def __init__(self, logger: BotLogger):
         """
         Initialisiert den SentimentAnalyzer.
 
         Args:
-            api_key: TweetScout API-Key
-            logger: Logger-Instanz
+            logger: Logger-Instanz für Logging
         """
-        self.BASE_URL = "https://api.tweetscout.io/v1"
-        self.api_key = api_key
         self.logger = logger
+        self.api_key = os.getenv("LUNARCRUSH_API_KEY")
+        self.base_url = "https://lunarcrush.com/api3/"
 
-    async def _make_request(self, endpoint: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        if not self.api_key:
+            self.logger.error("LUNARCRUSH_API_KEY fehlt! Setze ihn in deiner .env Datei.")
+
+    async def _make_request(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Führt einen TweetScout API-Request aus.
+        Führt eine Anfrage an die LunarCrush API aus.
 
         Args:
-            endpoint: API-Endpunkt
-            params: Query-Parameter
+            endpoint: API-Endpunkt (z.B. "assets")
+            params: Query-Parameter als Dictionary
 
         Returns:
-            API-Antwort als Dictionary
+            JSON-Antwort als Dictionary oder leeres Dictionary bei Fehler
         """
-        url = f"{self.BASE_URL}/{endpoint}"
+        url = f"{self.base_url}{endpoint}"
         headers = {"Authorization": f"Bearer {self.api_key}"}
 
         async with aiohttp.ClientSession() as session:
@@ -39,103 +41,94 @@ class SentimentAnalyzer:
                 async with session.get(url, headers=headers, params=params) as response:
                     if response.status == 200:
                         return await response.json()
-                    self.logger.error(f"TweetScout API Fehler: {response.status}")
+                    self.logger.error(f"LunarCrush API Fehler: {response.status}")
                     return {}
             except Exception as e:
-                self.logger.error(f"TweetScout Request Fehler: {str(e)}")
+                self.logger.error(f"LunarCrush Request Fehler: {str(e)}")
                 return {}
 
-    async def get_token_mentions(self, token: str) -> Dict[str, Any]:
+    async def get_token_sentiment(self, symbol: str) -> Dict[str, Any]:
         """
-        Analysiert Twitter-Erwähnungen eines Tokens.
+        Ruft die Sentiment-Daten eines Tokens ab.
 
         Args:
-            token: Token Symbol (z.B. "SOL")
+            symbol: Token Symbol (z.B. "SOL")
 
         Returns:
-            Mentions-Statistiken
+            Sentiment-Daten oder leeres Dictionary bei Fehler
         """
-        try:
-            params = {"token": token}
-            data = await self._make_request("mentions", params)
-            
-            if not data:
-                return {}
-                
-            mentions = {
-                "count_24h": data.get("mentions_24h", 0),
-                "sentiment_score": data.get("sentiment", 0),
-                "engagement": data.get("engagement", 0),
-                "influencer_mentions": data.get("influencer_count", 0)
-            }
-            
-            self.logger.info(f"Token {token} Mentions analysiert: {mentions['count_24h']}")
-            return mentions
-            
-        except Exception as e:
-            self.logger.error(f"Mentions-Analyse Fehler: {str(e)}")
+        params = {
+            "data": "assets",
+            "symbol": symbol
+        }
+        data = await self._make_request("assets", params)
+
+        if not data or "data" not in data:
             return {}
+
+        token_data = data["data"][0] if data["data"] else {}
+
+        sentiment = {
+            "symbol": symbol,
+            "galaxy_score": token_data.get("galaxy_score", 0),
+            "alt_rank": token_data.get("alt_rank", 0),
+            "social_volume": token_data.get("social_volume", 0),
+            "social_score": token_data.get("social_score", 0),
+            "market_cap_rank": token_data.get("market_cap_rank"),
+            "sentiment_absolute": token_data.get("sentiment_absolute", 0),
+            "sentiment_relative": token_data.get("sentiment_relative", 0),
+            "tweet_volume": token_data.get("tweet_volume", 0),
+            "tweet_sentiment": token_data.get("average_sentiment", 0)
+        }
+
+        self.logger.info(f"Sentiment-Daten für {symbol}: {sentiment}")
+        return sentiment
 
     async def get_trending_tokens(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
-        Ruft aktuell trendende Tokens ab.
+        Ruft die aktuell trendenden Tokens ab.
 
         Args:
-            limit: Maximale Anzahl der Tokens
+            limit: Anzahl der zurückzugebenden Tokens
 
         Returns:
-            Liste der trendenden Tokens
+            Liste mit trendenden Token-Daten
         """
-        try:
-            params = {"limit": limit}
-            data = await self._make_request("trending", params)
-            
-            if not data or "tokens" not in data:
-                return []
-                
-            trending = data["tokens"]
-            self.logger.info(f"{len(trending)} trendende Tokens gefunden")
-            return trending
-            
-        except Exception as e:
-            self.logger.error(f"Trending Tokens Fehler: {str(e)}")
+        params = {
+            "data": "assets",
+            "sort": "galaxy_score",  # Beste Sortierung laut Freund
+            "limit": limit
+        }
+        data = await self._make_request("assets", params)
+
+        if not data or "data" not in data:
             return []
 
-    async def get_sentiment_alerts(self) -> List[Dict[str, Any]]:
-        """
-        Ruft aktuelle Sentiment-Alerts ab.
+        trending_tokens = [
+            {
+                "symbol": token.get("symbol", ""),
+                "galaxy_score": token.get("galaxy_score", 0),
+                "alt_rank": token.get("alt_rank", 0),
+                "social_score": token.get("social_score", 0)
+            }
+            for token in data["data"]
+        ]
 
-        Returns:
-            Liste von Sentiment-Alerts
-        """
-        try:
-            data = await self._make_request("alerts")
-            
-            if not data or "alerts" not in data:
-                return []
-                
-            alerts = data["alerts"]
-            self.logger.info(f"{len(alerts)} Sentiment-Alerts gefunden")
-            return alerts
-            
-        except Exception as e:
-            self.logger.error(f"Sentiment-Alerts Fehler: {str(e)}")
-            return []
+        self.logger.info(f"{len(trending_tokens)} trendende Tokens gefunden.")
+        return trending_tokens
 
-    def is_bullish_sentiment(self, mentions: Dict[str, Any]) -> bool:
+    def is_bullish_sentiment(self, sentiment: Dict[str, Any]) -> bool:
         """
-        Prüft ob das Sentiment bullish ist.
+        Prüft, ob das Sentiment für einen Token bullish ist.
 
         Args:
-            mentions: Token-Mentions Daten
+            sentiment: Sentiment-Daten des Tokens
 
         Returns:
-            True wenn bullish
+            True wenn bullish, sonst False
         """
         try:
-            # Mindestens 100 Mentions und positiver Sentiment-Score
-            return (mentions.get("count_24h", 0) >= 100 and 
-                    mentions.get("sentiment_score", 0) > 0.6)
+            return (sentiment.get("galaxy_score", 0) >= 60 and sentiment.get("sentiment_relative", 0) > 0.6)
         except Exception as e:
-            self.logger.error(f"Sentiment-Check Fehler: {str(e)}")
+            self.logger.error(f"Fehler bei Bullish-Sentiment-Check: {str(e)}")
             return False

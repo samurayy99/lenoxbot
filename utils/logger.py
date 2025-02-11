@@ -3,16 +3,17 @@ import os
 from datetime import datetime
 from typing import Optional
 
-class Logger:
+
+class BotLogger:
     """
     Zentralisiertes Logging-System für den Trading-Bot.
     Unterstützt tagesbasierte Logs und Trade-spezifisches Logging.
     """
-    
+
     def __init__(self, log_dir: str = "logs", log_level: int = logging.INFO):
         """
         Initialisiert den Logger.
-        
+
         Args:
             log_dir: Verzeichnis für Log-Dateien.
             log_level: Logging Level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
@@ -20,10 +21,10 @@ class Logger:
         self.log_dir = log_dir
         self.logger = logging.getLogger("TradingBot")
         self.logger.setLevel(log_level)
-        
-        # Verzeichnis erstellen, falls es nicht existiert
+
+        # Verzeichnis für Logs erstellen, falls nicht vorhanden
         os.makedirs(self.log_dir, exist_ok=True)
-        
+
         # Handlers hinzufügen
         self._setup_file_handler()
         self._setup_console_handler()
@@ -31,8 +32,8 @@ class Logger:
     def _setup_file_handler(self) -> None:
         """Konfiguriert den Datei-Handler mit Tages-Log-Dateien."""
         date_str = datetime.now().strftime('%Y-%m-%d')
-        file_path = f"{self.log_dir}/trading_bot_{date_str}.log"
-        file_handler = logging.FileHandler(file_path)
+        file_path = os.path.join(self.log_dir, f"trading_bot_{date_str}.log")
+        file_handler = logging.FileHandler(file_path, encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(self._get_formatter())
         self.logger.addHandler(file_handler)
@@ -51,14 +52,14 @@ class Logger:
     def trade_log(self, action: str, token: str, amount: float, price: Optional[float] = None) -> None:
         """
         Spezielles Logging für Handelsaktionen.
-        
+
         Args:
             action: Typ der Aktion (buy, sell, etc.).
             token: Token-Symbol oder Adresse.
             amount: Handelsmenge.
             price: Optional - Preis des Trades.
         """
-        price_info = f" at {price}" if price else ""
+        price_info = f" at {price:.6f} USDC" if price else ""
         self.logger.info(f"TRADE - {action.upper()}: {amount} {token}{price_info}")
 
     def debug(self, message: str) -> None:

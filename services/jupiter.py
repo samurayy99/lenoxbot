@@ -92,3 +92,20 @@ class Jupiter:
             except Exception as e:
                 self.logger.error(f"Fehler bei der Trade-Ausführung: {str(e)}")
                 return None
+
+    async def get_token_price(self, token_address: str) -> Optional[float]:
+        """
+        Holt den aktuellen Token-Preis.
+        """
+        try:
+            route = await self.get_best_route(
+                token_address,
+                "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # USDC
+                1.0
+            )
+            if route:
+                return float(route["outAmount"]) / 1e6  # Konvertierung von USDC (6 Dezimalstellen)
+            return None
+        except Exception as e:
+            self.logger.error(f"Fehler beim Abrufen des Token-Preises: {str(e)}")
+            return None

@@ -135,12 +135,6 @@ class DexScreener:
     async def get_filtered_tokens(self, network: str = "solana") -> List[Dict[str, Any]]:
         """
         Abrufen und Filtern von Token-Daten.
-
-        Args:
-            network: Blockchain-Netzwerk.
-
-        Returns:
-            Liste der gefilterten Token-Daten.
         """
         pairs = await self.fetch_pairs(network)
         return self.filter_pairs(pairs)

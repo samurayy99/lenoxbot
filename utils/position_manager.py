@@ -167,3 +167,20 @@ class PositionManager:
         self.active_positions = {}
         self._save_positions()
         self.logger.info("Alle Positionen gelöscht.")
+
+    def check_position_exits(self, current_price: float) -> List[str]:
+        """
+        Prüft ob Positionen geschlossen werden sollen.
+        
+        Args:
+            current_price: Aktueller Token-Preis
+            
+        Returns:
+            Liste von Position-IDs die geschlossen werden sollen
+        """
+        exits = []
+        for pos_id, position in self.active_positions.items():
+            if (position["stop_loss"] and current_price <= position["stop_loss"]) or \
+               (position["take_profit"] and current_price >= position["take_profit"]):
+                exits.append(pos_id)
+        return exits

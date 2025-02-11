@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from utils.logger import BotLogger
 from utils.helpers import Helpers
 
@@ -167,3 +167,27 @@ class RiskManager:
             "risk_per_trade": self.config["risk_per_trade"],
             "account_size": self.config["account_size"]
         }
+
+    def check_trade_allowed(self, token: str, liquidity: float, price: float) -> bool:
+        """
+        Prüft ob ein Trade den Risikoparametern entspricht.
+        """
+        min_liquidity = self.config.get("min_liquidity", 10000)
+        if liquidity < min_liquidity:
+            self.logger.warning(f"Zu geringe Liquidität: {liquidity} < {min_liquidity}")
+            return False
+        return True
+
+    def get_stop_loss(self, entry_price: float) -> float:
+        """
+        Berechnet den Stop Loss Preis.
+        """
+        stop_loss_percent = self.config.get("stop_loss_percent", 0.05)
+        return entry_price * (1 - stop_loss_percent)
+
+    def get_take_profit(self, entry_price: float) -> float:
+        """
+        Berechnet den Take Profit Preis.
+        """
+        take_profit_percent = self.config.get("take_profit_percent", 0.15)
+        return entry_price * (1 + take_profit_percent)
