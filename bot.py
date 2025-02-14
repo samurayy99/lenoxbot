@@ -1,5 +1,6 @@
 import asyncio
 import os
+import base58
 from utils.config_loader import ConfigLoader
 from utils.logger import BotLogger
 from services.dexscreener import DexScreener
@@ -91,7 +92,8 @@ class TradingBot:
                 self.logger.error(f"❌ Keine Route gefunden für {opportunity['symbol']}")
                 continue
                 
-            swap_tx = await self.jupiter.execute_trade(route, self.wallet.keypair.secret_key)
+            swap_tx = await self.jupiter.execute_trade(route, base58.b58encode(self.wallet.keypair.to_bytes()).decode("utf-8"))
+
             if not swap_tx:
                 self.logger.error(f"❌ Trade fehlgeschlagen für {opportunity['symbol']}")
                 continue

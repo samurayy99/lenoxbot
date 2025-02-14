@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, patch
 from services.phantom_wallet import PhantomWallet
 from utils.logger import BotLogger
-from solana.transaction import Transaction
+from solders.transaction import Transaction
 
 @pytest.fixture
 def phantom_wallet():
@@ -10,7 +10,8 @@ def phantom_wallet():
     Test Fixture für PhantomWallet-Instanz.
     """
     logger = BotLogger()
-    return PhantomWallet(logger, rpc_url="https://api.mainnet-beta.solana.com")
+    private_key = "4NwMH9qEP5gYdpHNxhSgRh4e5V4LrHvG5uKhKHoKHjYvGmZE3wsxqNcMbpuuT5GoAiCczSuXkPvhQEqxwQpvZXJu"  # Example private key for testing
+    return PhantomWallet(private_key, rpc_url="https://api.mainnet-beta.solana.com", logger=logger)
 
 @pytest.mark.asyncio
 async def test_connect_success(phantom_wallet):
@@ -38,9 +39,10 @@ async def test_get_balance_success(phantom_wallet):
     """
     Test für erfolgreiche Balance-Abrufung.
     """
-    mock_response = {"value": 1000000000}  # 1 SOL in Lamports
+    mock_response = AsyncMock()
+    mock_response.value = 1000000000  # 1 SOL in Lamports
 
-    with patch("services.phantom_wallet.AsyncClient.get_balance", return_value=AsyncMock(value=mock_response)):
+    with patch.object(phantom_wallet.client, "get_balance", return_value=mock_response):
         balance = await phantom_wallet.get_balance()
         assert balance == 1.0  # 1 SOL
 
@@ -78,9 +80,10 @@ async def test_send_transaction_success(phantom_wallet):
     """
     Test für erfolgreiche Transaktionsausführung.
     """
-    mock_response = {"value": "mock_signature"}
+    mock_response = AsyncMock()
+    mock_response.value = "mock_signature"
 
-    with patch("services.phantom_wallet.AsyncClient.send_transaction", return_value=AsyncMock(value=mock_response)):
+    with patch.object(phantom_wallet.client, "send_raw_transaction", return_value=mock_response):
         transaction = Transaction()
         signature = await phantom_wallet.send_transaction(transaction)
         assert signature == "mock_signature"
@@ -90,7 +93,7 @@ async def test_send_transaction_failure(phantom_wallet):
     """
     Test für fehlgeschlagene Transaktionsausführung.
     """
-    with patch("services.phantom_wallet.AsyncClient.send_transaction", side_effect=Exception("Sende-Fehler")):
+    with patch.object(phantom_wallet.client, "send_raw_transaction", side_effect=Exception("Sende-Fehler")):
         transaction = Transaction()
         signature = await phantom_wallet.send_transaction(transaction)
         assert signature is None

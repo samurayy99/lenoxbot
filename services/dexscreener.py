@@ -1,103 +1,68 @@
 import aiohttp
-from typing import Dict, Any, List
+from typing import List, Dict, Any
 from utils.logger import BotLogger
 
 class DexScreener:
     """
-    Integration mit der DexScreener API für Token-Daten und Preise.
+    Integration with the Dexscreener API for fetching trading opportunities.
+    Documentation: https://docs.dexscreener.com/api/
     """
 
     def __init__(self, logger: BotLogger, filters: Dict[str, Any]):
-        self.BASE_URL = "https://api.dexscreener.com"
+        self.BASE_URL = "https://api.dexscreener.com/latest/dex"
         self.logger = logger
         self.filters = filters
 
-    async def get_filtered_tokens(self, chain_id: str = "solana") -> List[Dict[str, Any]]:
+    async def get_filtered_tokens(self, chain: str) -> List[Dict[str, Any]]:
         """
-        Holt und filtert Token basierend auf den definierten Kriterien.
-        
+        Fetches filtered tokens for a specific blockchain.
+
         Args:
-            chain_id: Blockchain ID (default: solana)
-            
+            chain: The blockchain to fetch tokens from (e.g., "solana").
+
         Returns:
-            Liste gefilterter Token-Opportunities
-        """
-        pairs = await self.fetch_pairs(chain_id)
-        if not pairs:
-            return []
-            
-        opportunities = self._filter_opportunities(pairs)
-        self.logger.info(f"✅ {len(opportunities)} gefilterte Opportunities gefunden")
-        return opportunities
-
-    async def fetch_pairs(self, chain_id: str) -> List[Dict[str, Any]]:
-        """
-        Ruft Token-Pairs von DexScreener ab.
+            A list of filtered tokens.
         """
         try:
-            url = f"{self.BASE_URL}/latest/dex/search"
-            params = {
-                "q": chain_id
-            }
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return data.get("pairs", [])
-                    else:
-                        self.logger.error(f"DexScreener API Error: {response.status}")
-                        return []
-
-        except Exception as e:
-            self.logger.error(f"Fehler beim Abrufen der Pairs: {str(e)}")
-            return []
-
-    async def get_token_price(self, token_address: str, chain_id: str = "solana") -> float:
-        """
-        Holt den aktuellen Preis eines Tokens.
-        """
-        try:
-            url = f"{self.BASE_URL}/tokens/v1/{chain_id}/{token_address}"
-            
+            url = f"{self.BASE_URL}/{chain}/pairs"
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:
                     if response.status == 200:
                         data = await response.json()
-                        if data and len(data) > 0:
-                            price_str = data[0].get("priceUsd")
-                            if price_str:
-                                return float(price_str)
-                    return 0.0
+                        self.logger.info(f"Fetched {len(data['pairs'])} pairs for {chain}.")
+                        return data['pairs']
+                    else:
+                        error_data = await response.text()
+                        self.logger.error(f"DexScreener API Error: {response.status} - {error_data}")
+                        return []
 
         except Exception as e:
-            self.logger.error(f"Fehler beim Abrufen des Token-Preises: {str(e)}")
-            return 0.0
+            self.logger.error(f"Error fetching filtered tokens: {str(e)}")
+            return []
 
-    def _filter_opportunities(self, pairs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def get_token_info(self, token_address: str) -> Dict[str, Any]:
         """
-        Filtert Token-Pairs basierend auf definierten Kriterien.
-        """
-        filtered = []
-        for pair in pairs:
-            try:
-                # Extrahiere relevante Daten
-                liquidity = pair.get("liquidity", {}).get("usd", 0)
-                market_cap = pair.get("marketCap", 0)
-                
-                # Prüfe Filter-Kriterien
-                if (liquidity >= self.filters["liquidity_min"] and
-                    self.filters["market_cap"]["min"] <= market_cap <= self.filters["market_cap"]["max"]):
-                    
-                    filtered.append({
-                        "address": pair["baseToken"]["address"],
-                        "symbol": pair["baseToken"]["symbol"],
-                        "price_usd": float(pair.get("priceUsd", 0)),
-                        "liquidity_usd": liquidity,
-                        "market_cap": market_cap
-                    })
-            except Exception as e:
-                self.logger.error(f"Fehler beim Filtern eines Pairs: {str(e)}")
-                continue
+        Fetches information about a specific token.
 
-        return filtered
+        Args:
+            token_address: The address of the token.
+
+        Returns:
+            A dictionary containing token information.
+        """
+        try:
+            url = f"{self.BASE_URL}/tokens/{token_address}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        self.logger.info(f"Fetched info for token: {token_address}.")
+                        return data
+                    else:
+                        error_data = await response.text()
+                        self.logger.error(f"DexScreener API Error: {response.status} - {error_data}")
+                        return {}
+
+        except Exception as e:
+            self.logger.error(f"Error fetching token info: {str(e)}")
+            return {}

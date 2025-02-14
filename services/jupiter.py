@@ -119,34 +119,3 @@ class Jupiter:
         except Exception as e:
             self.logger.error(f"Fehler beim Senden der Transaktion: {str(e)}")
             return None
-
-    async def get_token_price(self, token_mint: str) -> Optional[float]:
-        """
-        Holt den aktuellen Token-Preis in USDC.
-        
-        Args:
-            token_mint: Token mint address
-            
-        Returns:
-            Price in USDC or None if failed
-        """
-        try:
-            # USDC mint address on Solana
-            usdc_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-            
-            # Get quote for 1 unit of token
-            quote = await self.get_best_route(
-                input_mint=token_mint,
-                output_mint=usdc_mint,
-                amount=1_000_000  # 1 unit in lamports
-            )
-            
-            if quote and "outAmount" in quote:
-                # Convert from USDC decimals (6) to float
-                price = float(quote["outAmount"]) / 1_000_000
-                return price
-            return None
-
-        except Exception as e:
-            self.logger.error(f"Fehler beim Abrufen des Token-Preises: {str(e)}")
-            return None
